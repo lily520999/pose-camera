@@ -1,8 +1,11 @@
 {
-  "name": "姿势模板相机",
+  "name": "姿势相机",
   "short_name": "姿势相机",
-  "start_url": "index.html",
+  "description": "一个帮助拍照摆姿势的相机应用",
+  "id": "pose-camera-1",
+  "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#000000",
   "theme_color": "#000000",
   "icons": [
@@ -16,5 +19,8 @@
       "sizes": "512x512",
       "type": "image/png"
     }
-  ]
+  ],
+  "launch_handler": {
+    "client_mode": "auto"
+  }
 } 
