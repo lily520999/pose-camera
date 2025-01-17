@@ -1,6 +1,15 @@
 {
+  "name": "pose-camera",
+  "version": "1.0.0",
+  "description": "姿势模板相机应用",
+  "main": "index.js",
+  "scripts": {
+    "build": "cap sync",
+    "android": "cap open android"
+  },
   "dependencies": {
-    "@capacitor/android": "^6.2.0",
-    "@capacitor/core": "^6.2.0"
+    "@capacitor/android": "^5.0.0",
+    "@capacitor/core": "^5.0.0",
+    "@capacitor/cli": "^5.0.0"
   }
 }
