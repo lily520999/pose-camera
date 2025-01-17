@@ -1,0 +1,5 @@
+<key>NSCameraUsageDescription</key>
+<string>需要访问相机来进行拍照</string>
+
+<key>NSPhotoLibraryUsageDescription</key>
+<string>需要访问相册来保存照片</string> 

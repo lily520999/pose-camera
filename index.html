@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>姿势模板相机</title>
+    <style>
+        body {
+            margin: 0;
+            background: #000;
+            color: white;
+        }
+        
+        .camera-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        #camera-view {
+            width: 100%;
+            transform: scaleX(-1);
+        }
+        
+        #pose-template {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: auto;
+            opacity: 0.7;
+            transform-origin: center;
+            touch-action: none;
+        }
+        
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px;
+        }
+        
+        .capture-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: 3px solid white;
+            background: transparent;
+            cursor: pointer;
+        }
+        
+        .template-btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid white;
+            border-radius: 20px;
+            cursor: pointer;
+            color: white;
+        }
+        
+        #template-selector {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            display: none;
+        }
+        
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .template-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            cursor: pointer;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .template-item img:hover {
+            border-color: #00a0ff;
+            transform: scale(1.05);
+        }
+        
+        .template-item {
+            position: relative;
+            text-align: center;
+        }
+        
+        .template-item::after {
+            content: attr(data-name);
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px;
+            font-size: 12px;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+        
+        .template-controls {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .zoom-slider {
+            writing-mode: vertical-lr;
+            width: 100px;
+        }
+        
+        .rotate-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .rotate-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 1px solid white;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        /* 添加倒计时样式 */
+        .countdown {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 100px;
+            color: white;
+            display: none;
+        }
+        
+        /* 添加预览界面样式 */
+        .preview-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            z-index: 1000;
+        }
+        
+        .preview-image {
+            max-width: 90%;
+            max-height: 80vh;
+            margin: 20px auto;
+            display: block;
+        }
+        
+        .preview-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px;
+        }
+        
+        /* 滤镜选择器样式 */
+        #filter-selector {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            display: flex;
+            overflow-x: auto;
+            gap: 10px;
+        }
+        
+        .filter-option {
+            min-width: 60px;
+            text-align: center;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid transparent;
+        }
+        
+        .filter-option.active {
+            border-color: #00a0ff;
+        }
+        
+        .filter-preview {
+            width: 50px;
+            height: 50px;
+            border-radius: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .filter-name {
+            font-size: 12px;
+            color: white;
+        }
+        
+        /* 闪光灯按钮样式 */
+        .flash-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid white;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 100;
+        }
+        
+        .flash-btn.active {
+            background: rgba(255, 255, 0, 0.3);
+        }
+        
+        /* 网格辅助线样式 */
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            display: none;
+        }
+        
+        .grid-line {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .grid-line-h {
+            width: 100%;
+            height: 1px;
+        }
+        
+        .grid-line-v {
+            width: 1px;
+            height: 100%;
+        }
+        
+        /* 网格切换按钮 */
+        .grid-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid white;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 100;
+        }
+        
+        .grid-btn.active {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        /* 定时器设置样式 */
+        .timer-settings {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 20px;
+            padding: 5px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 100;
+        }
+        
+        .timer-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 5px;
+        }
+        
+        .timer-btn.active {
+            color: #00a0ff;
+        }
+        
+        /* 美颜控制样式 */
+        .beauty-controls {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 20px;
+            padding: 10px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            z-index: 100;
+        }
+        
+        .beauty-label {
+            color: white;
+            font-size: 14px;
+        }
+        
+        .beauty-slider {
+            width: 200px;
+            margin: 0;
+        }
+        
+        /* 连拍设置样式 */
+        .burst-settings {
+            position: fixed;
+            left: 20px;
+            bottom: 100px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 20px;
+            padding: 10px;
+            color: white;
+            z-index: 100;
+        }
+        
+        .burst-btn {
+            background: none;
+            border: 1px solid white;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            cursor: pointer;
+        }
+        
+        .burst-btn.active {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        /* 连拍预览网格 */
+        .burst-preview-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            padding: 10px;
+        }
+        
+        .burst-preview-item {
+            position: relative;
+            aspect-ratio: 1;
+        }
+        
+        .burst-preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        
+        /* 照片编辑控制样式 */
+        .edit-controls {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 20px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 1001;
+        }
+        
+        .edit-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .edit-label {
+            color: white;
+            font-size: 12px;
+        }
+        
+        .edit-slider {
+            writing-mode: vertical-lr;
+            width: 100px;
+        }
+        
+        .edit-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid white;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        /* 裁剪控制样式 */
+        .crop-controls {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1002;
+            display: none;
+        }
+        
+        .crop-area {
+            position: absolute;
+            border: 2px solid white;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+            cursor: move;
+        }
+        
+        .crop-handle {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+        }
+        
+        .crop-buttons {
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        
+        .template-categories {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .category-btn {
+            background: none;
+            border: 1px solid white;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 15px;
+            cursor: pointer;
+        }
+        
+        .category-btn.active {
+            background: rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="camera-container">
+        <video id="camera-view" autoplay playsinline></video>
+        <img id="pose-template" src="" style="display: none;">
+        <div class="grid-overlay">
+            <div class="grid-line grid-line-h" style="top: 33.33%"></div>
+            <div class="grid-line grid-line-h" style="top: 66.66%"></div>
+            <div class="grid-line grid-line-v" style="left: 33.33%"></div>
+            <div class="grid-line grid-line-v" style="left: 66.66%"></div>
+        </div>
+        <div class="template-controls">
+            <div class="rotate-controls">
+                <button class="rotate-btn" onclick="rotateTemplate(-15)">↺</button>
+                <button class="rotate-btn" onclick="rotateTemplate(15)">↻</button>
+            </div>
+            <input type="range" class="zoom-slider" 
+                   min="0.5" max="2" step="0.1" value="1"
+                   oninput="updateTemplateScale(this.value)">
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button class="template-btn" onclick="toggleTemplates()">选择模板</button>
+        <button class="capture-btn" onclick="takePhoto()"></button>
+        <button class="template-btn" onclick="switchCamera()">切换相机</button>
+    </div>
+    
+    <div id="template-selector">
+        <div class="template-grid">
+            <!-- 单人模板 -->
+            <div class="template-item" data-name="单人站姿">
+                <img src="https://cdn.jsdelivr.net/gh/pose-templates/single@main/stand.png" 
+                     onclick="selectTemplate(this.src)">
+            </div>
+            <div class="template-item" data-name="单人坐姿">
+                <img src="https://cdn.jsdelivr.net/gh/pose-templates/single@main/sit.png" 
+                     onclick="selectTemplate(this.src)">
+            </div>
+            <div class="template-item" data-name="单人侧身">
+                <img src="https://cdn.jsdelivr.net/gh/pose-templates/single@main/side.png" 
+                     onclick="selectTemplate(this.src)">
+            </div>
+            
+            <!-- 双人模板 -->
+            <div class="template-item" data-name="情侣对视">
+                <img src="https://cdn.jsdelivr.net/gh/pose-templates/couple@main/face.png" 
+                     onclick="selectTemplate(this.src)">
+            </div>
+            <div class="template-item" data-name="情侣拥抱">
+                <img src="https://cdn.jsdelivr.net/gh/pose-templates/couple@main/hug.png" 
+                     onclick="selectTemplate(this.src)">
+            </div>
+            <div class="template-item" data-name="情侣牵手">
+                <img src="https://cdn.jsdelivr.net/gh/pose-templates/couple@main/hand.png" 
+                     onclick="selectTemplate(this.src)">
+            </div>
+            
+            <!-- 团体模板 -->
+            <div class="template-item" data-name="三人合照">
+                <img src="https://cdn.jsdelivr.net/gh/pose-templates/group@main/three.png" 
+                     onclick="selectTemplate(this.src)">
+            </div>
+            <div class="template-item" data-name="四人合照">
+                <img src="https://cdn.jsdelivr.net/gh/pose-templates/group@main/four.png" 
+                     onclick="selectTemplate(this.src)">
+            </div>
+            <div class="template-item" data-name="多人合照">
+                <img src="https://cdn.jsdelivr.net/gh/pose-templates/group@main/many.png" 
+                     onclick="selectTemplate(this.src)">
+            </div>
+            
+            <!-- 特殊场景 -->
+            <div class="template-item" data-name="毕业照">
+                <img src="https://cdn.jsdelivr.net/gh/pose-templates/scene@main/graduate.png" 
+                     onclick="selectTemplate(this.src)">
+            </div>
+            <div class="template-item" data-name="旅游照">
+                <img src="https://cdn.jsdelivr.net/gh/pose-templates/scene@main/travel.png" 
+                     onclick="selectTemplate(this.src)">
+            </div>
+            <div class="template-item" data-name="美食照">
+                <img src="https://cdn.jsdelivr.net/gh/pose-templates/scene@main/food.png" 
+                     onclick="selectTemplate(this.src)">
+            </div>
+        </div>
+        
+        <!-- 添加分类标签 -->
+        <div class="template-categories">
+            <button class="category-btn active" onclick="filterTemplates('all')">全部</button>
+            <button class="category-btn" onclick="filterTemplates('single')">单人</button>
+            <button class="category-btn" onclick="filterTemplates('couple')">双人</button>
+            <button class="category-btn" onclick="filterTemplates('group')">团体</button>
+            <button class="category-btn" onclick="filterTemplates('scene')">场景</button>
+        </div>
+    </div>
+    
+    <!-- 添加倒计时显示 -->
+    <div class="countdown"></div>
+    
+    <!-- 添加预览界面 -->
+    <div class="preview-container">
+        <img class="preview-image">
+        <!-- 添加裁剪控制 -->
+        <div class="crop-controls">
+            <div class="crop-area">
+                <div class="crop-handle" style="top: 0; left: 0;"></div>
+                <div class="crop-handle" style="top: 0; left: 50%;"></div>
+                <div class="crop-handle" style="top: 0; left: 100%;"></div>
+                <div class="crop-handle" style="top: 50%; left: 0;"></div>
+                <div class="crop-handle" style="top: 50%; left: 100%;"></div>
+                <div class="crop-handle" style="top: 100%; left: 0;"></div>
+                <div class="crop-handle" style="top: 100%; left: 50%;"></div>
+                <div class="crop-handle" style="top: 100%; left: 100%;"></div>
+            </div>
+            <div class="crop-buttons">
+                <button class="template-btn" onclick="cancelCrop()">取消</button>
+                <button class="template-btn" onclick="applyCrop()">确定</button>
+            </div>
+        </div>
+        <div class="edit-controls">
+            <button class="edit-btn" onclick="startCrop()">裁剪</button>
+            <div class="edit-group">
+                <span class="edit-label">亮度</span>
+                <input type="range" class="edit-slider" 
+                       min="-100" max="100" value="0"
+                       oninput="updateEdit('brightness', this.value)">
+            </div>
+            <div class="edit-group">
+                <span class="edit-label">对比度</span>
+                <input type="range" class="edit-slider" 
+                       min="-100" max="100" value="0"
+                       oninput="updateEdit('contrast', this.value)">
+            </div>
+            <div class="edit-group">
+                <span class="edit-label">饱和度</span>
+                <input type="range" class="edit-slider" 
+                       min="-100" max="100" value="0"
+                       oninput="updateEdit('saturation', this.value)">
+            </div>
+            <button class="edit-btn" onclick="resetEdit()">重置</button>
+        </div>
+        <div class="preview-controls">
+            <button class="template-btn" onclick="retakePhoto()">重拍</button>
+            <button class="template-btn" onclick="savePhoto()">保存</button>
+        </div>
+    </div>
+    
+    <!-- 添加滤镜选择器 -->
+    <div id="filter-selector">
+        <div class="filter-option active" onclick="selectFilter('none')">
+            <div class="filter-preview" style="background: #666;">
+                <img src="camera-view" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+            <div class="filter-name">原图</div>
+        </div>
+        <div class="filter-option" onclick="selectFilter('grayscale')">
+            <div class="filter-preview" style="background: #666; filter: grayscale(100%)">
+                <img src="camera-view" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+            <div class="filter-name">黑白</div>
+        </div>
+        <div class="filter-option" onclick="selectFilter('sepia')">
+            <div class="filter-preview" style="background: #666; filter: sepia(100%)">
+                <img src="camera-view" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+            <div class="filter-name">复古</div>
+        </div>
+        <div class="filter-option" onclick="selectFilter('contrast')">
+            <div class="filter-preview" style="background: #666; filter: contrast(150%)">
+                <img src="camera-view" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+            <div class="filter-name">高对比</div>
+        </div>
+    </div>
+    
+    <!-- 添加闪光灯按钮 -->
+    <button class="flash-btn" onclick="toggleFlash()">
+        ⚡
+    </button>
+    
+    <!-- 添加网格切换按钮 -->
+    <button class="grid-btn" onclick="toggleGrid()">
+        #
+    </button>
+    
+    <!-- 添加定时器设置 -->
+    <div class="timer-settings">
+        <button class="timer-btn active" onclick="setTimer(0)">关闭</button>
+        <button class="timer-btn" onclick="setTimer(3)">3s</button>
+        <button class="timer-btn" onclick="setTimer(5)">5s</button>
+        <button class="timer-btn" onclick="setTimer(10)">10s</button>
+    </div>
+    
+    <!-- 添加美颜控制 -->
+    <div class="beauty-controls">
+        <div>
+            <div class="beauty-label">磨皮</div>
+            <input type="range" class="beauty-slider" 
+                   min="0" max="100" value="0"
+                   oninput="updateBeauty('smooth', this.value)">
+        </div>
+        <div>
+            <div class="beauty-label">美白</div>
+            <input type="range" class="beauty-slider" 
+                   min="0" max="100" value="0"
+                   oninput="updateBeauty('brightness', this.value)">
+        </div>
+    </div>
+    
+    <!-- 添加连拍设置 -->
+    <div class="burst-settings">
+        <button class="burst-btn" onclick="toggleBurstMode()">
+            连拍模式
+        </button>
+        <span id="burst-count" style="margin-left: 10px; display: none;">
+            0/5
+        </span>
+    </div>
+
+    <script>
+        let stream;
+        let facingMode = "user";
+        let templatePosition = { x: 0, y: 0 };
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let currentPhoto = null;
+        let templateRotation = 0;
+        let templateScale = 1;
+        let currentFilter = 'none';
+        let flashlight = null;
+        let isFlashOn = false;
+        let isGridOn = false;
+        let timerDelay = 0;
+        let beautySettings = {
+            smooth: 0,
+            brightness: 0
+        };
+        let isBurstMode = false;
+        let burstPhotos = [];
+        const BURST_COUNT = 5;  // 连拍数量
+        const BURST_INTERVAL = 500;  // 连拍间隔(毫秒)
+        
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode,
+                        advanced: [{ torch: true }]  // 请求闪光灯权限
+                    }
+                });
+                const video = document.getElementById('camera-view');
+                video.srcObject = stream;
+                video.play();
+                
+                // 获取闪光灯能力
+                const track = stream.getVideoTracks()[0];
+                flashlight = track.getCapabilities().torch;
+                
+                // 显示/隐藏闪光灯按钮
+                document.querySelector('.flash-btn').style.display = 
+                    flashlight ? 'flex' : 'none';
+                
+            } catch (err) {
+                console.error('相机访问失败:', err);
+                alert('无法访问相机，请确保允许相机权限并使用 HTTPS 或 localhost');
+            }
+        }
+        
+        function toggleTemplates() {
+            const selector = document.getElementById('template-selector');
+            selector.style.display = selector.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        function selectTemplate(src) {
+            const template = document.getElementById('pose-template');
+            template.src = src;
+            template.style.display = 'block';
+            toggleTemplates();
+        }
+        
+        function setTimer(seconds) {
+            timerDelay = seconds;
+            // 更新按钮状态
+            document.querySelectorAll('.timer-btn').forEach(btn => {
+                btn.classList.toggle('active', 
+                    parseInt(btn.textContent) === seconds || 
+                    (btn.textContent === '关闭' && seconds === 0));
+            });
+        }
+        
+        function startCountdown() {
+            const countdown = document.querySelector('.countdown');
+            let count = timerDelay || 3;  // 如果没有设置定时，默认3秒
+            
+            countdown.style.display = 'block';
+            countdown.textContent = count;
+            
+            const timer = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdown.textContent = count;
+                } else {
+                    clearInterval(timer);
+                    countdown.style.display = 'none';
+                    capturePhoto();
+                }
+            }, 1000);
+        }
+        
+        function takePhoto() {
+            if (isBurstMode) {
+                burstPhotos = [];  // 清空之前的连拍
+                startBurst();
+            } else {
+                if (timerDelay > 0) {
+                    startCountdown();
+                } else {
+                    capturePhoto();
+                }
+            }
+        }
+        
+        function capturePhoto(isBurst = false) {
+            const video = document.getElementById('camera-view');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            const ctx = canvas.getContext('2d');
+            
+            // 绘制视频帧
+            ctx.save();
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+            ctx.restore();
+            
+            // 应用美颜和滤镜效果
+            if (currentFilter !== 'none' || beautySettings.smooth > 0 || beautySettings.brightness > 0) {
+                ctx.filter = video.style.filter;
+                ctx.drawImage(canvas, 0, 0);
+                ctx.filter = 'none';
+            }
+            
+            // 叠加姿势模板
+            const template = document.getElementById('pose-template');
+            if (template.style.display !== 'none') {
+                ctx.globalAlpha = 0.7;
+                ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
+            }
+            
+            // 保存照片
+            const photoUrl = canvas.toDataURL('image/png');
+            if (isBurst) {
+                burstPhotos.push(photoUrl);
+                if (burstPhotos.length >= BURST_COUNT) {
+                    showBurstPreview();
+                }
+            } else {
+                currentPhoto = photoUrl;
+                showPreview(photoUrl);
+            }
+        }
+        
+        function showPreview(photoUrl) {
+            const preview = document.querySelector('.preview-container');
+            const previewImage = preview.querySelector('.preview-image');
+            previewImage.src = photoUrl;
+            preview.style.display = 'flex';
+            resetEdit();  // 重置编辑设置
+        }
+        
+        function retakePhoto() {
+            document.querySelector('.preview-container').style.display = 'none';
+            currentPhoto = null;
+        }
+        
+        function savePhoto() {
+            if (currentPhoto) {
+                // 创建临时canvas来应用编辑效果
+                const canvas = document.createElement('canvas');
+                const img = document.querySelector('.preview-image');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.filter = img.style.filter;
+                ctx.drawImage(img, 0, 0);
+                
+                const link = document.createElement('a');
+                link.download = 'pose-photo.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            }
+        }
+        
+        async function switchCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            facingMode = facingMode === "user" ? "environment" : "user";
+            isFlashOn = false;  // 切换相机时关闭闪光灯
+            document.querySelector('.flash-btn').classList.remove('active');
+            await startCamera();
+        }
+        
+        // 添加模板拖拽功能
+        const template = document.getElementById('pose-template');
+        template.addEventListener('mousedown', startDrag);
+        template.addEventListener('touchstart', startDrag);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('touchmove', drag);
+        document.addEventListener('mouseup', endDrag);
+        document.addEventListener('touchend', endDrag);
+        
+        function startDrag(e) {
+            isDragging = true;
+            const pos = e.touches ? e.touches[0] : e;
+            dragStart = {
+                x: pos.clientX - templatePosition.x,
+                y: pos.clientY - templatePosition.y
+            };
+            e.preventDefault();
+        }
+        
+        function drag(e) {
+            if (!isDragging) return;
+            const pos = e.touches ? e.touches[0] : e;
+            templatePosition = {
+                x: pos.clientX - dragStart.x,
+                y: pos.clientY - dragStart.y
+            };
+            updateTemplateTransform();
+            e.preventDefault();
+        }
+        
+        function endDrag() {
+            isDragging = false;
+        }
+        
+        function updateTemplateTransform() {
+            const template = document.getElementById('pose-template');
+            template.style.transform = `translate(${templatePosition.x}px, ${templatePosition.y}px) 
+                                      scale(${templateScale}) 
+                                      rotate(${templateRotation}deg)`;
+        }
+        
+        function rotateTemplate(degrees) {
+            templateRotation = (templateRotation + degrees) % 360;
+            updateTemplateTransform();
+        }
+        
+        function updateTemplateScale(scale) {
+            templateScale = scale;
+            updateTemplateTransform();
+        }
+        
+        function selectFilter(filter) {
+            currentFilter = filter;
+            // 更新选中状态
+            document.querySelectorAll('.filter-option').forEach(option => {
+                option.classList.toggle('active', 
+                    option.getAttribute('onclick').includes(filter));
+            });
+            
+            // 应用滤镜到预览
+            const video = document.getElementById('camera-view');
+            switch(filter) {
+                case 'none':
+                    video.style.filter = 'none';
+                    break;
+                case 'grayscale':
+                    video.style.filter = 'grayscale(100%)';
+                    break;
+                case 'sepia':
+                    video.style.filter = 'sepia(100%)';
+                    break;
+                case 'contrast':
+                    video.style.filter = 'contrast(150%)';
+                    break;
+            }
+        }
+        
+        async function toggleFlash() {
+            if (!flashlight) return;
+            
+            const track = stream.getVideoTracks()[0];
+            isFlashOn = !isFlashOn;
+            
+            try {
+                await track.applyConstraints({
+                    advanced: [{ torch: isFlashOn }]
+                });
+                
+                // 更新按钮状态
+                document.querySelector('.flash-btn').classList.toggle('active', isFlashOn);
+            } catch (err) {
+                console.error('闪光灯控制失败:', err);
+                alert('无法控制闪光灯');
+            }
+        }
+        
+        function toggleGrid() {
+            isGridOn = !isGridOn;
+            document.querySelector('.grid-overlay').style.display = 
+                isGridOn ? 'block' : 'none';
+            document.querySelector('.grid-btn').classList.toggle('active', isGridOn);
+        }
+        
+        function updateBeauty(type, value) {
+            beautySettings[type] = value;
+            applyBeautyEffect();
+        }
+        
+        function applyBeautyEffect() {
+            const video = document.getElementById('camera-view');
+            let filterString = '';
+            
+            // 磨皮效果（使用模糊+锐化组合）
+            if (beautySettings.smooth > 0) {
+                const blur = beautySettings.smooth * 0.1;
+                filterString += `blur(${blur}px) `;
+            }
+            
+            // 美白效果（使用亮度+对比度）
+            if (beautySettings.brightness > 0) {
+                const brightness = 1 + beautySettings.brightness * 0.01;
+                filterString += `brightness(${brightness}) `;
+            }
+            
+            // 应用当前的滤镜效果
+            if (currentFilter !== 'none') {
+                filterString += video.style.filter;
+            }
+            
+            video.style.filter = filterString;
+        }
+        
+        function toggleBurstMode() {
+            isBurstMode = !isBurstMode;
+            document.querySelector('.burst-btn').classList.toggle('active', isBurstMode);
+            document.getElementById('burst-count').style.display = 
+                isBurstMode ? 'inline' : 'none';
+            burstPhotos = [];  // 清空之前的连拍
+        }
+        
+        async function startBurst() {
+            if (burstPhotos.length >= BURST_COUNT) {
+                showBurstPreview();
+                return;
+            }
+            
+            capturePhoto(true);  // true表示连拍模式
+            document.getElementById('burst-count').textContent = 
+                `${burstPhotos.length}/${BURST_COUNT}`;
+            
+            if (burstPhotos.length < BURST_COUNT) {
+                setTimeout(startBurst, BURST_INTERVAL);
+            }
+        }
+        
+        function showBurstPreview() {
+            const preview = document.querySelector('.preview-container');
+            const previewImage = preview.querySelector('.preview-image');
+            preview.style.display = 'flex';
+            
+            // 创建连拍预览网格
+            const grid = document.createElement('div');
+            grid.className = 'burst-preview-grid';
+            burstPhotos.forEach((photo, index) => {
+                const item = document.createElement('div');
+                item.className = 'burst-preview-item';
+                item.innerHTML = `
+                    <img src="${photo}" onclick="selectBurstPhoto(${index})">
+                `;
+                grid.appendChild(item);
+            });
+            
+            previewImage.replaceWith(grid);
+        }
+        
+        function selectBurstPhoto(index) {
+            currentPhoto = burstPhotos[index];
+            showPreview(currentPhoto);
+        }
+        
+        // 添加编辑相关变量
+        let editSettings = {
+            brightness: 0,
+            contrast: 0,
+            saturation: 0
+        };
+        
+        function updateEdit(type, value) {
+            editSettings[type] = parseInt(value);
+            applyEditEffect();
+        }
+        
+        function resetEdit() {
+            editSettings = {
+                brightness: 0,
+                contrast: 0,
+                saturation: 0
+            };
+            
+            // 重置滑块位置
+            document.querySelectorAll('.edit-slider').forEach(slider => {
+                slider.value = 0;
+            });
+            
+            applyEditEffect();
+        }
+        
+        function applyEditEffect() {
+            const previewImage = document.querySelector('.preview-image');
+            const filters = [];
+            
+            if (editSettings.brightness !== 0) {
+                filters.push(`brightness(${1 + editSettings.brightness * 0.01})`);
+            }
+            if (editSettings.contrast !== 0) {
+                filters.push(`contrast(${1 + editSettings.contrast * 0.01})`);
+            }
+            if (editSettings.saturation !== 0) {
+                filters.push(`saturate(${1 + editSettings.saturation * 0.01})`);
+            }
+            
+            previewImage.style.filter = filters.join(' ') || 'none';
+        }
+        
+        let cropArea = {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0
+        };
+        
+        function startCrop() {
+            const cropControls = document.querySelector('.crop-controls');
+            const previewImage = document.querySelector('.preview-image');
+            const cropAreaEl = document.querySelector('.crop-area');
+            
+            // 初始化裁剪区域
+            cropArea = {
+                x: previewImage.offsetLeft,
+                y: previewImage.offsetTop,
+                width: previewImage.offsetWidth,
+                height: previewImage.offsetHeight
+            };
+            
+            // 设置裁剪区域位置和大小
+            Object.assign(cropAreaEl.style, {
+                left: cropArea.x + 'px',
+                top: cropArea.y + 'px',
+                width: cropArea.width + 'px',
+                height: cropArea.height + 'px'
+            });
+            
+            cropControls.style.display = 'block';
+        }
+        
+        function cancelCrop() {
+            document.querySelector('.crop-controls').style.display = 'none';
+        }
+        
+        function applyCrop() {
+            const canvas = document.createElement('canvas');
+            const img = document.querySelector('.preview-image');
+            const ratio = img.naturalWidth / img.offsetWidth;
+            
+            canvas.width = cropArea.width * ratio;
+            canvas.height = cropArea.height * ratio;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img,
+                cropArea.x * ratio, cropArea.y * ratio,
+                cropArea.width * ratio, cropArea.height * ratio,
+                0, 0, canvas.width, canvas.height
+            );
+            
+            // 更新预览图片
+            currentPhoto = canvas.toDataURL('image/png');
+            showPreview(currentPhoto);
+            cancelCrop();
+        }
+        
+        // 添加裁剪区域拖拽功能
+        const cropAreaEl = document.querySelector('.crop-area');
+        cropAreaEl.addEventListener('mousedown', startCropDrag);
+        document.addEventListener('mousemove', cropDrag);
+        document.addEventListener('mouseup', endCropDrag);
+        
+        let isCropDragging = false;
+        let cropDragStart = { x: 0, y: 0 };
+        let activeHandle = null;
+        
+        function startCropDrag(e) {
+            const handle = e.target;
+            if (handle.classList.contains('crop-handle')) {
+                activeHandle = handle;
+                cropDragStart = {
+                    x: e.clientX,
+                    y: e.clientY,
+                    width: cropArea.width,
+                    height: cropArea.height
+                };
+            } else {
+                isCropDragging = true;
+                cropDragStart = {
+                    x: e.clientX - cropArea.x,
+                    y: e.clientY - cropArea.y
+                };
+            }
+            e.preventDefault();
+        }
+        
+        function cropDrag(e) {
+            if (!isCropDragging && !activeHandle) return;
+            
+            if (activeHandle) {
+                // 计算缩放
+                const dx = e.clientX - cropDragStart.x;
+                const dy = e.clientY - cropDragStart.y;
+                
+                // 根据手柄位置调整大小
+                const pos = activeHandle.style;
+                if (pos.left === '0%') {  // 左边手柄
+                    cropArea.x += dx;
+                    cropArea.width = cropDragStart.width - dx;
+                }
+                if (pos.left === '100%') {  // 右边手柄
+                    cropArea.width = cropDragStart.width + dx;
+                }
+                if (pos.top === '0%') {  // 顶部手柄
+                    cropArea.y += dy;
+                    cropArea.height = cropDragStart.height - dy;
+                }
+                if (pos.top === '100%') {  // 底部手柄
+                    cropArea.height = cropDragStart.height + dy;
+                }
+                
+                // 确保最小尺寸
+                cropArea.width = Math.max(100, cropArea.width);
+                cropArea.height = Math.max(100, cropArea.height);
+            } else {
+                // 移动整个裁剪区域
+                cropArea.x = e.clientX - cropDragStart.x;
+                cropArea.y = e.clientY - cropDragStart.y;
+            }
+            
+            Object.assign(cropAreaEl.style, {
+                left: cropArea.x + 'px',
+                top: cropArea.y + 'px',
+                width: cropArea.width + 'px',
+                height: cropArea.height + 'px'
+            });
+            
+            e.preventDefault();
+        }
+        
+        function endCropDrag() {
+            isCropDragging = false;
+            activeHandle = null;
+        }
+        
+        function filterTemplates(category) {
+            // 更新按钮状态
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.toggle('active', 
+                    btn.textContent.toLowerCase().includes(category));
+            });
+            
+            // 筛选模板
+            document.querySelectorAll('.template-item').forEach(item => {
+                const src = item.querySelector('img').src;
+                if (category === 'all' || src.includes(category)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+        
+        // 启动相机
+        startCamera();
+    </script>
+</body>
+</html> 

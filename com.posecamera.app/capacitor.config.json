@@ -1,0 +1,10 @@
+{
+  "appId": "com.posecamera.app",
+  "appName": "PoseCamera",
+  "webDir": "dist",
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false
+    }
+  }
+}
